@@ -43,6 +43,12 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
 
+# -------------------- HEALTH CHECK (KEEP-ALIVE) --------------------
+@app.route("/health")
+@app.route("/ping")
+def health_check():
+    return jsonify({"status": "ok", "message": "SwiftStore is awake!"}), 200
+
 # -------------------- GLOBAL CACHE --------------------
 reverse_geocode_cache = {}
 # -------------------- EMAIL SERVICE --------------------
