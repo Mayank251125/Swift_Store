@@ -35,9 +35,17 @@ os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 app.secret_key = os.getenv("SECRET_KEY", "swiftstore-dev-secret-key-98765")
 
 # -------------------- DATABASE CONFIG --------------------
-db_url = os.getenv("DATABASE_URL", "sqlite:///database.db")
-if db_url.startswith("postgres://"):
-    db_url = db_url.replace("postgres://", "postgresql://", 1)
+raw_db_url = os.getenv("DATABASE_URL")
+if not raw_db_url:
+    instance_path = os.path.join(app.root_path, "instance")
+    os.makedirs(instance_path, exist_ok=True)
+    db_file_path = os.path.abspath(os.path.join(instance_path, "database.db"))
+    db_url = f"sqlite:///{db_file_path}"
+elif raw_db_url.startswith("postgres://"):
+    db_url = raw_db_url.replace("postgres://", "postgresql://", 1)
+else:
+    db_url = raw_db_url
+
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -318,7 +326,7 @@ class Rating(BaseModel):
 
 
 # -------------------- INITIALIZE DATABASE TABLES & ADMIN --------------------
-with app.app_context():
+def init_db_and_admin():
     try:
         db.create_all()
         admin_email = os.getenv("ADMIN_EMAIL")
@@ -330,7 +338,7 @@ with app.app_context():
             if admin_user:
                 admin_user.password = bcrypt.generate_password_hash(admin_password).decode("utf-8")
                 admin_user.role = "admin"  
-                print("[Admin password updated!]")
+                print("[Admin password updated!]", flush=True)
             else:
                 admin_user = User(
                     email=admin_email,
@@ -338,11 +346,23 @@ with app.app_context():
                     role="admin"
                 )
                 db.session.add(admin_user)
-                print("[Admin created!]")
+                print("[Admin created!]", flush=True)
 
             db.session.commit()
     except Exception as err:
-        print("[DB Init Warning]:", err)
+        print("[DB Init Warning]:", err, flush=True)
+
+with app.app_context():
+    init_db_and_admin()
+
+_db_initialized = False
+
+@app.before_request
+def ensure_tables_exist():
+    global _db_initialized
+    if not _db_initialized:
+        init_db_and_admin()
+        _db_initialized = True
 
 
 def assign_delivery_agent(order):
