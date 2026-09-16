@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+database.db
+instance/
+.env
+.env.*
+tempCodeRunnerFile.py
+venv/
+static/uploads/
+Demo/

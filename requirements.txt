@@ -1,0 +1,8 @@
+Flask
+Flask-SQLAlchemy
+Flask-Bcrypt
+razorpay
+requests
+gunicorn
+psycopg2-binary
+python-dotenv
