@@ -1108,6 +1108,7 @@ def start_delivery(order_id):
     db.session.commit()
 
     customer = User.query.get(order.customer_id)
+    print(f"[OTP GENERATED] Order #{order.id}: {otp} for customer {customer.email if customer else 'unknown'}", flush=True)
 
     html = build_email_template(
     "Delivery OTP 🔐",
