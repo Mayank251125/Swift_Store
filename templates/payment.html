@@ -246,8 +246,8 @@ function payNow() {
 }
 window.onload = function() {
 
-    const expired = {{ expired|default(false)|tojson }};
-    const message = {{ message|default("")|tojson }};
+    const expired = JSON.parse('{{ expired|default(false)|tojson }}');
+    const message = JSON.parse('{{ message|default("")|tojson }}');
 
     if (expired) {
         showToast(message, "error");
