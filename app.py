@@ -31,6 +31,7 @@ from email.mime.multipart import MIMEMultipart
 # -------------------- APP INIT --------------------
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = "static/uploads"
+os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 app.secret_key = os.getenv("SECRET_KEY", "swiftstore-dev-secret-key-98765")
 
 # -------------------- DATABASE CONFIG --------------------
@@ -306,6 +307,34 @@ class Rating(BaseModel):
     order = db.relationship("Order")
     customer = db.relationship("User", foreign_keys=[customer_id])
     delivery = db.relationship("User", foreign_keys=[delivery_id])
+
+
+# -------------------- INITIALIZE DATABASE TABLES & ADMIN --------------------
+with app.app_context():
+    try:
+        db.create_all()
+        admin_email = os.getenv("ADMIN_EMAIL")
+        admin_password = os.getenv("ADMIN_PASSWORD")
+
+        if admin_email and admin_password:
+            admin_user = User.query.filter_by(email=admin_email).first()
+
+            if admin_user:
+                admin_user.password = bcrypt.generate_password_hash(admin_password).decode("utf-8")
+                admin_user.role = "admin"  
+                print("[Admin password updated!]")
+            else:
+                admin_user = User(
+                    email=admin_email,
+                    password=bcrypt.generate_password_hash(admin_password).decode("utf-8"),
+                    role="admin"
+                )
+                db.session.add(admin_user)
+                print("[Admin created!]")
+
+            db.session.commit()
+    except Exception as err:
+        print("[DB Init Warning]:", err)
 
 
 def assign_delivery_agent(order):
@@ -2451,29 +2480,5 @@ def razorpay_webhook():
     
 # -------------------- RUN --------------------
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
-
-        admin_email = os.getenv("ADMIN_EMAIL")
-        admin_password = os.getenv("ADMIN_PASSWORD")
-
-        if admin_email and admin_password:
-            admin_user = User.query.filter_by(email=admin_email).first()
-
-            if admin_user:
-                admin_user.password = bcrypt.generate_password_hash(admin_password).decode("utf-8")
-                admin_user.role = "admin"  
-                print("🔁 Admin password updated!")
-            else:
-                admin_user = User(
-                    email=admin_email,
-                    password=bcrypt.generate_password_hash(admin_password).decode("utf-8"),
-                    role="admin"
-                )
-                db.session.add(admin_user)
-                print("✅ Admin created!")
-
-            db.session.commit()
-
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
