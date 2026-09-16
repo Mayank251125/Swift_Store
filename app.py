@@ -50,6 +50,14 @@ bcrypt = Bcrypt(app)
 def health_check():
     return jsonify({"status": "ok", "message": "SwiftStore is awake!"}), 200
 
+import traceback
+
+@app.errorhandler(500)
+def handle_500_error(e):
+    print("❌ 500 INTERNAL SERVER ERROR TRACEBACK:", flush=True)
+    print(traceback.format_exc(), flush=True)
+    return "Internal Server Error", 500
+
 # -------------------- GLOBAL CACHE --------------------
 reverse_geocode_cache = {}
 # -------------------- EMAIL SERVICE --------------------
@@ -2055,8 +2063,15 @@ def register(role):
 )
 
 
-        db.session.add(new_user)
-        db.session.commit()
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+        except Exception as e:
+            print("Registration commit retry:", e, flush=True)
+            db.session.rollback()
+            db.create_all()
+            db.session.add(new_user)
+            db.session.commit()
 
         flash("Account created successfully! Please login.")
         return redirect(url_for(f"{role}_login"))
