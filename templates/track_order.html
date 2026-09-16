@@ -97,7 +97,7 @@
 
 <script>
 
-const ORDER_ID = {{ order.id }};
+const ORDER_ID = parseInt("{{ order.id }}", 10);
 let map = L.map('map');
 let mapInitialized = false;
 
