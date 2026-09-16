@@ -69,32 +69,37 @@ def handle_500_error(e):
 # -------------------- GLOBAL CACHE --------------------
 reverse_geocode_cache = {}
 # -------------------- EMAIL SERVICE --------------------
+import threading
+
 def send_email(to_email, subject, html_body):
+    def _send():
+        sender_email = os.getenv("ADMIN_EMAIL", "swiftstore.official.noreply@gmail.com")
+        sender_password = os.getenv("SWIFTSTORE_EMAIL_PASSWORD")
 
-    sender_email = os.getenv("ADMIN_EMAIL", "swiftstore.noreply.official@gmail.com")
-    sender_password = os.getenv("SWIFTSTORE_EMAIL_PASSWORD")
+        if not sender_password:
+            print("[EMAIL PASSWORD NOT SET]", flush=True)
+            return
 
+        msg = MIMEMultipart("alternative")
+        msg["From"] = sender_email
+        msg["To"] = to_email
+        msg["Subject"] = subject
 
-    if not sender_password:
-        print("❌ EMAIL PASSWORD NOT SET")
-        return
+        msg.attach(MIMEText(html_body, "html"))
 
-    msg = MIMEMultipart("alternative")
-    msg["From"] = sender_email
-    msg["To"] = to_email
-    msg["Subject"] = subject
+        try:
+            server = smtplib.SMTP("smtp.gmail.com", 587, timeout=10)
+            server.starttls()
+            server.login(sender_email, sender_password)
+            server.send_message(msg)
+            server.quit()
+            print("[Email sent successfully!]", flush=True)
+        except Exception as e:
+            print("[Email error]:", e, flush=True)
 
-    msg.attach(MIMEText(html_body, "html"))
-
-    try:
-        server = smtplib.SMTP("smtp.gmail.com", 587)
-        server.starttls()
-        server.login(sender_email, sender_password)
-        server.send_message(msg)
-        server.quit()
-        print("📧 Email sent successfully!")
-    except Exception as e:
-        print("Email error:", e)
+    thread = threading.Thread(target=_send)
+    thread.daemon = True
+    thread.start()
 
 
 def generate_otp():
