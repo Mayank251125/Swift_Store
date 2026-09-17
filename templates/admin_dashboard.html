@@ -204,6 +204,63 @@
 }
 
 
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 900px) {
+            body {
+                display: block;
+            }
+
+            .sidebar {
+                position: relative;
+                width: 100%;
+                height: auto;
+                padding: 15px 20px;
+                box-sizing: border-box;
+                border-right: none;
+                border-bottom: 1px solid #e5e7eb;
+            }
+
+            .logo-container {
+                margin-bottom: 15px;
+            }
+
+            .sidebar a {
+                display: inline-block;
+                padding: 8px 12px;
+                margin-bottom: 4px;
+                margin-right: 4px;
+                font-size: 13px;
+                background: #f3f4f6;
+            }
+
+            .logout {
+                margin-top: 10px;
+                text-align: left;
+            }
+
+            .main {
+                margin-left: 0;
+                padding: 20px 15px;
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+
+            .id-modal-content {
+                width: 90%;
+                padding: 15px;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -265,6 +322,7 @@
     <!-- Revenue History Table -->
     <h3 style="margin-top:20px;">Revenue History</h3>
 
+    <div class="table-responsive">
     <table>
         <thead>
             <tr>
@@ -289,12 +347,14 @@
             {% endif %}
         </tbody>
     </table>
+    </div>
 </div>
 
 
 <!-- DELIVERY PARTNERS -->
 <div class="section" id="deliveries">
     <h2>Delivery Partners</h2>
+    <div class="table-responsive">
     <table>
         <tr>
             <th>Name</th>
@@ -340,6 +400,7 @@
         </tr>
         {% endfor %}
     </table>
+    </div>
 </div>
 
 
@@ -347,6 +408,7 @@
 <div class="section" id="vendors">
     <h2>Vendors</h2>
 
+    <div class="table-responsive">
     <table>
         <tr>
             <th>Company</th>
@@ -379,6 +441,7 @@
         </tr>
         {% endfor %}
     </table>
+    </div>
 </div>
 
 
@@ -398,6 +461,7 @@
 <!-- ORDERS -->
 <div class="section" id="orders">
     <h2>Orders</h2>
+    <div class="table-responsive">
     <table>
         {% for order in orders %}
         <tr>
@@ -407,6 +471,7 @@
         </tr>
         {% endfor %}
     </table>
+    </div>
 </div>
 
 <!-- COMPLAINTS -->
