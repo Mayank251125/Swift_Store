@@ -312,7 +312,8 @@
             <td>
                 {% if d.national_id %}
                    <button class="view-btn"
-        onclick="openIdModal('{{ url_for('static', filename='uploads/' + d.national_id) }}')">
+        data-url="{{ url_for('static', filename='uploads/' + d.national_id) }}"
+        onclick="openIdModal(this.dataset.url)">
     View ID
 </button>
 
@@ -321,7 +322,7 @@
                     Not Uploaded
                 {% endif %}
             </td>
-            <<td>
+            <td>
     {% if d.is_verified %}
         <span style="color:#22c55e; font-weight:bold;">Verified</span>
     {% else %}
@@ -438,16 +439,24 @@
 
 </div>
 
+<script id="revenue-data" type="application/json">
+{
+    "dates": {{ revenue_dates|tojson }},
+    "amounts": {{ revenue_amounts|tojson }}
+}
+</script>
+
 <script>
+const revenueData = JSON.parse(document.getElementById('revenue-data').textContent);
 const ctx = document.getElementById('revenueChart');
 
 new Chart(ctx, {
     type: 'line',
     data: {
-        labels: {{ revenue_dates|tojson }},
+        labels: revenueData.dates,
         datasets: [{
             label: 'Daily Revenue',
-            data: {{ revenue_amounts|tojson }},
+            data: revenueData.amounts,
             borderColor: '#8b5cf6',
             backgroundColor: 'rgba(139,92,246,0.15)',
             tension: 0.4,
@@ -455,10 +464,9 @@ new Chart(ctx, {
         }]
     },
     options: {
-    responsive: true,
-    maintainAspectRatio: false
-}
-
+        responsive: true,
+        maintainAspectRatio: false
+    }
 });
 </script>
 <script>

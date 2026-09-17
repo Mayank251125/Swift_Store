@@ -196,7 +196,8 @@ class User(BaseModel):
 # -------------------- ORDER STATE MACHINE --------------------
 
 ORDER_TRANSITIONS = {
-    "placed": ["assigned", "cancelled"],
+    "placed": ["approved", "assigned", "cancelled"],
+    "approved": ["assigned", "cancelled"],
     "assigned": ["picked_up"],
     "picked_up": ["out_for_delivery"],
     "out_for_delivery": ["delivered"],
@@ -372,14 +373,9 @@ def ensure_tables_exist():
 
 def assign_delivery_agent(order):
 
-    if order.customer_lat is None or order.customer_lon is None:
-        return False
-
     deliveries = User.query.filter(
         User.role == "delivery",
-        User.is_verified == True,
-        User.latitude.isnot(None),
-        User.longitude.isnot(None)
+        User.is_verified == True
     ).all()
 
     if not deliveries:
@@ -395,12 +391,20 @@ def assign_delivery_agent(order):
 
     for agent in deliveries:
 
-        distance = calculate_distance(
-            agent.latitude,
-            agent.longitude,
-            order.customer_lat,
-            order.customer_lon
-        )
+        if (
+            agent.latitude is not None and
+            agent.longitude is not None and
+            order.customer_lat is not None and
+            order.customer_lon is not None
+        ):
+            distance = calculate_distance(
+                agent.latitude,
+                agent.longitude,
+                order.customer_lat,
+                order.customer_lon
+            )
+        else:
+            distance = 0.0
 
         active_orders_count = Order.query.filter(
             Order.delivery_id == agent.id,
@@ -816,6 +820,38 @@ def delivery_dashboard():
 )
 
 
+    # Query available unassigned orders
+    unassigned_orders = Order.query.filter(
+        Order.delivery_id.is_(None),
+        Order.status.in_(["placed", "approved"])
+    ).all()
+
+    available_orders = []
+    for ord in unassigned_orders:
+        has_pending = OrderItem.query.filter_by(order_id=ord.id, status="pending").first()
+        has_rejected = OrderItem.query.filter_by(order_id=ord.id, status="rejected").first()
+        if not has_pending and not has_rejected:
+            if (
+                delivery.latitude is not None and
+                delivery.longitude is not None and
+                ord.customer_lat is not None and
+                ord.customer_lon is not None
+            ):
+                dist = calculate_distance(
+                    delivery.latitude,
+                    delivery.longitude,
+                    ord.customer_lat,
+                    ord.customer_lon
+                )
+                dist = round(dist, 2)
+            else:
+                dist = None
+
+            available_orders.append({
+                "order": ord,
+                "distance": dist
+            })
+
     active_enriched = None
 
     if active_order:
@@ -845,13 +881,64 @@ def delivery_dashboard():
         }
 
     return render_template(
-    "delivery_dashboard.html",
-    active_order=active_enriched,
-    completed_orders=completed_orders,
-    earnings=round(earnings, 2),
-    avg_rating=avg_rating,
-    total_ratings=total_ratings
-)
+        "delivery_dashboard.html",
+        active_order=active_enriched,
+        available_orders=available_orders,
+        completed_orders=completed_orders,
+        earnings=round(earnings, 2),
+        avg_rating=avg_rating,
+        total_ratings=total_ratings
+    )
+
+
+@app.route("/accept-order/<int:order_id>", methods=["POST"])
+def accept_order(order_id):
+
+    if "user_id" not in session or session.get("role") != "delivery":
+        return redirect(url_for("delivery_login"))
+
+    delivery = User.query.get(session["user_id"])
+
+    if not delivery or not delivery.is_verified:
+        flash("Your account is not verified for delivery.", "danger")
+        return redirect(url_for("delivery_dashboard"))
+
+    active_order = Order.query.filter(
+        Order.delivery_id == delivery.id,
+        Order.status.in_(["assigned", "picked_up", "out_for_delivery"])
+    ).first()
+
+    if active_order:
+        flash("You already have an active delivery in progress!", "warning")
+        return redirect(url_for("delivery_dashboard"))
+
+    order = Order.query.get_or_404(order_id)
+
+    if order.delivery_id is not None:
+        flash("This order has already been assigned to another delivery partner.", "info")
+        return redirect(url_for("delivery_dashboard"))
+
+    order.delivery_id = delivery.id
+    order.status = "assigned"
+    db.session.commit()
+
+    customer = User.query.get(order.customer_id)
+    if customer and customer.email:
+        try:
+            html = build_email_template(
+                "Delivery Partner Assigned 🚚",
+                f"""
+                Hi {customer.full_name or customer.email},<br><br>
+                A delivery partner ({delivery.full_name or 'SwiftStore Delivery'}) has accepted your order <strong>#{order.id}</strong>.<br><br>
+                Your order is being processed for pickup.
+                """
+            )
+            send_email(customer.email, "Delivery Partner Assigned - SwiftStore", html)
+        except Exception as e:
+            print(f"[Email Send Error]: {e}", flush=True)
+
+    flash("Order accepted successfully!", "success")
+    return redirect(url_for("delivery_dashboard"))
 
 
 
@@ -1850,12 +1937,14 @@ def approve_order(order_id):
 
     # If no pending items → assign delivery
     if not pending_exists and not order.delivery_id:
+        order.status = "approved"
+        db.session.commit()
 
         assigned = assign_delivery_agent(order)
 
         if not assigned:
-            # Do NOT break system — just show message
-            flash("No delivery agents available right now.", "warning")
+            # Do NOT break system — order stays 'approved' so delivery partners can accept manually
+            flash("No delivery agent auto-assigned. Order is now open for available delivery partners to accept.", "info")
             return redirect(url_for("vendor_dashboard"))
 
         #  Notify customer

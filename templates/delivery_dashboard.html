@@ -235,128 +235,118 @@ if (navigator.geolocation) {
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-{% if active_order %}
+const ORDER_ID = parseInt("{{ active_order.order.id if active_order else '' }}", 10) || null;
 
-const ORDER_ID = {{ active_order.order.id }};
-let map = L.map('map');
-let deliveryMarker, customerMarker, vendorMarker, routeLine;
-let mapInitialized = false;
+if (ORDER_ID) {
+    let map = L.map('map');
+    let deliveryMarker, customerMarker, vendorMarker, routeLine;
+    let mapInitialized = false;
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors'
-}).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
 
-function updateMap() {
-    fetch(`/order-location-data/${ORDER_ID}`)
-        .then(res => res.json())
-        .then(data => {
+    function updateMap() {
+        fetch(`/order-location-data/${ORDER_ID}`)
+            .then(res => res.json())
+            .then(data => {
 
-            const customer = data.customer;
-            const vendors = data.vendors;
-            const delivery = data.delivery;
+                const customer = data.customer;
+                const vendors = data.vendors;
+                const delivery = data.delivery;
 
-            if (!customer || !customer.lat || !customer.lon) return;
+                if (!customer || !customer.lat || !customer.lon) return;
 
-            // Initialize map once
-            if (!mapInitialized) {
-                map.setView([customer.lat, customer.lon], 14);
-                mapInitialized = true;
-            }
+                // Initialize map once
+                if (!mapInitialized) {
+                    map.setView([customer.lat, customer.lon], 14);
+                    mapInitialized = true;
+                }
 
-            // Customer Marker
-            if (!customerMarker) {
-                customerMarker = L.marker([customer.lat, customer.lon])
-                    .addTo(map)
-                    .bindPopup("📍 Customer");
-            }
-
-           // 🔥 Vendor Markers (Different Emojis)
-if (vendors && vendors.length > 0) {
-
-    vendors.forEach((v, index) => {
-
-        let emoji = "🏪";  // default
-
-        if (index === 0) {
-            emoji = "🏬";  // Vendor 1
-        } 
-        else if (index === 1) {
-            emoji = "🛒";  // Vendor 2
-        }
-        else {
-            emoji = "🏪";  // fallback for more vendors
-        }
-
-        L.marker([v.lat, v.lon])
-            .addTo(map)
-            .bindPopup(emoji + " " + v.name);
-    });
-
-}
-
-
-            // Delivery Marker
-            if (delivery && delivery.lat && delivery.lon) {
-
-                if (!deliveryMarker) {
-                    deliveryMarker = L.marker([delivery.lat, delivery.lon])
+                // Customer Marker
+                if (!customerMarker) {
+                    customerMarker = L.marker([customer.lat, customer.lon])
                         .addTo(map)
-                        .bindPopup("🚚 You");
-                } else {
-                    deliveryMarker.setLatLng([delivery.lat, delivery.lon]);
+                        .bindPopup("📍 Customer");
                 }
 
-                // Decide destination
-                let destinationLat = null;
-                let destinationLon = null;
+                // 🔥 Vendor Markers (Different Emojis)
+                if (vendors && vendors.length > 0) {
+                    vendors.forEach((v, index) => {
+                        let emoji = "🏪";  // default
+                        if (index === 0) {
+                            emoji = "🏬";  // Vendor 1
+                        } else if (index === 1) {
+                            emoji = "🛒";  // Vendor 2
+                        } else {
+                            emoji = "🏪";  // fallback for more vendors
+                        }
 
-                if (data.status === "assigned") {
-                    if (vendor && vendor.lat && vendor.lon) {
-                        destinationLat = vendor.lat;
-                        destinationLon = vendor.lon;
-                    }
-                } 
-                else if (
-                    data.status === "picked_up" ||
-                    data.status === "out_for_delivery"
-                ) {
-                    if (customer && customer.lat && customer.lon) {
-                        destinationLat = customer.lat;
-                        destinationLon = customer.lon;
-                    }
+                        L.marker([v.lat, v.lon])
+                            .addTo(map)
+                            .bindPopup(emoji + " " + v.name);
+                    });
                 }
 
-                if (destinationLat && destinationLon) {
+                // Delivery Marker
+                if (delivery && delivery.lat && delivery.lon) {
 
-                    fetch(`https://router.project-osrm.org/route/v1/driving/${delivery.lon},${delivery.lat};${destinationLon},${destinationLat}?overview=full&geometries=geojson`)
-                        .then(res => res.json())
-                        .then(routeData => {
+                    if (!deliveryMarker) {
+                        deliveryMarker = L.marker([delivery.lat, delivery.lon])
+                            .addTo(map)
+                            .bindPopup("🚚 You");
+                    } else {
+                        deliveryMarker.setLatLng([delivery.lat, delivery.lon]);
+                    }
 
-                            if (routeData.routes && routeData.routes.length > 0) {
+                    // Decide destination
+                    let destinationLat = null;
+                    let destinationLon = null;
 
-                                if (routeLine) {
-                                    map.removeLayer(routeLine);
+                    if (data.status === "assigned") {
+                        if (vendors && vendors.length > 0 && vendors[0].lat && vendors[0].lon) {
+                            destinationLat = vendors[0].lat;
+                            destinationLon = vendors[0].lon;
+                        }
+                    } 
+                    else if (
+                        data.status === "picked_up" ||
+                        data.status === "out_for_delivery"
+                    ) {
+                        if (customer && customer.lat && customer.lon) {
+                            destinationLat = customer.lat;
+                            destinationLon = customer.lon;
+                        }
+                    }
+
+                    if (destinationLat && destinationLon) {
+                        fetch(`https://router.project-osrm.org/route/v1/driving/${delivery.lon},${delivery.lat};${destinationLon},${destinationLat}?overview=full&geometries=geojson`)
+                            .then(res => res.json())
+                            .then(routeData => {
+
+                                if (routeData.routes && routeData.routes.length > 0) {
+
+                                    if (routeLine) {
+                                        map.removeLayer(routeLine);
+                                    }
+
+                                    routeLine = L.geoJSON(routeData.routes[0].geometry, {
+                                        style: { color: '#22c55e', weight: 5 }
+                                    }).addTo(map);
+
+                                    map.fitBounds(routeLine.getBounds());
                                 }
 
-                                routeLine = L.geoJSON(routeData.routes[0].geometry, {
-                                    style: { color: '#22c55e', weight: 5 }
-                                }).addTo(map);
-
-                                map.fitBounds(routeLine.getBounds());
-                            }
-
-                        });
-
+                            });
+                    }
                 }
-            }
 
-        });
+            });
+    }
+
+    updateMap();
+    setInterval(updateMap, 8000);
 }
-
-updateMap();
-setInterval(updateMap, 8000);
-
-{% endif %}
 </script>
 
 

@@ -168,21 +168,20 @@
 
 <div class="quantity-box">
     <button class="qty-control"
-        onclick="changeQuantity({{ product.id }}, -1)">−</button>
+        onclick="changeQuantity('{{ product.id }}', -1)">−</button>
 
     <span id="qty-{{ product.id }}" class="qty-number">1</span>
 
     <button class="qty-control"
-        onclick="changeQuantity({{ product.id }}, 1)">+</button>
+        onclick="changeQuantity('{{ product.id }}', 1)">+</button>
 </div>
 
 <button class="add-btn"
-    onclick="addToCartWithQty(
-        {{ product.id }},
-        '{{ product.name }}',
-        {{ product.price }},
-        {{ product.vendor_id }}
-    )">
+    data-id="{{ product.id }}"
+    data-name="{{ product.name }}"
+    data-price="{{ product.price }}"
+    data-vendor-id="{{ product.vendor_id or '' }}"
+    onclick="addToCartWithQty(this.dataset.id, this.dataset.name, this.dataset.price, this.dataset.vendorId)">
     Add to Cart
 </button>
 

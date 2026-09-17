@@ -10,6 +10,9 @@ if (!Array.isArray(cart) || cart.length === 0) {
 /* ---------------- ADD TO CART ---------------- */
 
 function addToCartWithQty(id, name, price, vendorId) {
+    id = parseInt(id);
+    price = parseFloat(price);
+    vendorId = vendorId ? parseInt(vendorId) : null;
 
     const qty = parseInt(document.getElementById(`qty-${id}`).innerText);
 
